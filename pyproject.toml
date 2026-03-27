@@ -1,0 +1,33 @@
+[project]
+name = "obsidian-vault-auto-tagger"
+version = "0.1.0"
+description = "Scans vault files and suggests consistent tags using LLM."
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.15.0",
+    "rich>=14.3.3",
+    "pydantic>=2.12.5",
+    "local-first-common",
+    "python-frontmatter>=1.1.0",
+]
+
+[project.scripts]
+vault-auto-tagger = "obsidian_vault_auto_tagger.logic:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obsidian_vault_auto_tagger"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.uv.sources]
+local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", branch = "main" }
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
