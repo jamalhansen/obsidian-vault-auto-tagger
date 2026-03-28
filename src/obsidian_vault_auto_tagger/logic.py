@@ -19,6 +19,7 @@ from local_first_common.cli import (
     resolve_dry_run,
 )
 from local_first_common.tracking import register_tool, timed_run
+from local_first_common.models import ContentMetadata
 
 from .schema import VaultTagReport
 from .prompts import build_system_prompt, build_user_prompt
@@ -36,11 +37,8 @@ def get_all_vault_tags(vault_path: Path) -> Set[str]:
                 file_path = Path(root) / file
                 try:
                     post = frontmatter.load(file_path)
-                    tags = post.get("tags", [])
-                    if isinstance(tags, str):
-                        all_tags.add(tags)
-                    elif isinstance(tags, list):
-                        all_tags.update(tags)
+                    meta = ContentMetadata.from_metadata(post.metadata)
+                    all_tags.update(meta.tags)
                 except Exception:
                     continue
     return all_tags
@@ -119,10 +117,12 @@ def scan(
     for f in files_to_process:
         try:
             post = frontmatter.load(f)
+            meta = ContentMetadata.from_metadata(post.metadata)
             notes_data.append({
                 "path": str(f.relative_to(vault_path)),
                 "content": post.content[:2000], # Truncate content for prompt efficiency
-                "tags": post.get("tags", [])
+                "tags": meta.tags,
+                "category": meta.category_name,
             })
         except Exception as e:
             if verbose:

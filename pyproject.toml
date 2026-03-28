@@ -24,6 +24,7 @@ packages = ["src/obsidian_vault_auto_tagger"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.uv.sources]
