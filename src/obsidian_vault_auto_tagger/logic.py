@@ -1,7 +1,6 @@
-from local_first_common.config import get_setting
 import os
 from pathlib import Path
-from typing import Optional, Set
+from typing import Annotated, Optional, Set
 
 import typer
 import frontmatter
@@ -20,15 +19,17 @@ from local_first_common.cli import (
     resolve_provider,
     resolve_dry_run,
 )
+from local_first_common.config import get_setting
 from local_first_common.tracking import register_tool, timed_run
 from local_first_common.models import ContentMetadata
 
 from .schema import VaultTagReport
 from .prompts import build_system_prompt, build_user_prompt
 
-_TOOL = register_tool("obsidian-vault-auto-tagger")
 TOOL_NAME = "obsidian-vault-auto-tagger"
 DEFAULTS = {"provider": "ollama", "model": "llama3"}
+_TOOL = register_tool(TOOL_NAME)
+
 console = Console()
 app = typer.Typer(help="Scans vault files and suggests consistent tags using LLM.")
 
@@ -72,12 +73,13 @@ def display_suggestions(report: VaultTagReport):
 def scan(
     folder: Optional[Path] = typer.Option(None, "--folder", "-f", help="Specific folder to scan in vault."),
     limit: int = typer.Option(10, "--limit", "-l", help="Limit number of files to process."),
-    provider: str = provider_option(PROVIDERS),
-    model: Optional[str] = model_option(),
-    dry_run: bool = dry_run_option(),
-    no_llm: bool = no_llm_option(),
-    verbose: bool = verbose_option(),
-    debug: bool = debug_option(),
+    provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get("MODEL_PROVIDER", "ollama"),
+    model: Annotated[Optional[str], model_option()] = None,
+    dry_run: Annotated[bool, dry_run_option()] = False,
+    no_llm: Annotated[bool, no_llm_option()] = False,
+    verbose: Annotated[bool, verbose_option()] = False,
+    debug: Annotated[bool, debug_option()] = False,
+    init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,
 ):
     """Scan vault and suggest tags."""
     dry_run = resolve_dry_run(dry_run, no_llm)
@@ -135,8 +137,8 @@ def scan(
     # 4. LLM processing
     try:
         actual_provider = get_setting(TOOL_NAME, "provider", cli_val=provider, default="ollama")
-    actual_model = get_setting(TOOL_NAME, "model", cli_val=model)
-    llm = resolve_provider(PROVIDERS, provider, model, debug=debug, no_llm=no_llm)
+        actual_model = get_setting(TOOL_NAME, "model", cli_val=model)
+        llm = resolve_provider(PROVIDERS, actual_provider, actual_model, debug=debug, no_llm=no_llm)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
