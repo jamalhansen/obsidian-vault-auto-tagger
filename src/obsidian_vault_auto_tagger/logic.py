@@ -1,3 +1,4 @@
+from local_first_common.config import get_setting
 import os
 from pathlib import Path
 from typing import Optional, Set
@@ -9,6 +10,7 @@ from rich.table import Table
 
 from local_first_common.providers import PROVIDERS
 from local_first_common.cli import (
+    init_config_option,
     provider_option,
     model_option,
     dry_run_option,
@@ -25,6 +27,8 @@ from .schema import VaultTagReport
 from .prompts import build_system_prompt, build_user_prompt
 
 _TOOL = register_tool("obsidian-vault-auto-tagger")
+TOOL_NAME = "obsidian-vault-auto-tagger"
+DEFAULTS = {"provider": "ollama", "model": "llama3"}
 console = Console()
 app = typer.Typer(help="Scans vault files and suggests consistent tags using LLM.")
 
@@ -130,7 +134,9 @@ def scan(
 
     # 4. LLM processing
     try:
-        llm = resolve_provider(PROVIDERS, provider, model, debug=debug, no_llm=no_llm)
+        actual_provider = get_setting(TOOL_NAME, "provider", cli_val=provider, default="ollama")
+    actual_model = get_setting(TOOL_NAME, "model", cli_val=model)
+    llm = resolve_provider(PROVIDERS, provider, model, debug=debug, no_llm=no_llm)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
