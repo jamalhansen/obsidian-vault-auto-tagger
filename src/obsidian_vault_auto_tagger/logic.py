@@ -27,11 +27,26 @@ from .schema import VaultTagReport
 from .prompts import build_system_prompt, build_user_prompt
 
 TOOL_NAME = "obsidian-vault-auto-tagger"
+
+
+class VaultTaggerError(Exception):
+    """Base typed error for obsidian-vault-auto-tagger."""
+
+
+class ProviderSetupError(VaultTaggerError):
+    """Raised when provider resolution fails."""
+
+
+class LLMRunError(VaultTaggerError):
+    """Raised when the LLM tagging call fails."""
+
+
 DEFAULTS = {"provider": "ollama", "model": "llama3"}
 _TOOL = register_tool(TOOL_NAME)
 
 console = Console()
 app = typer.Typer(help="Scans vault files and suggests consistent tags using LLM.")
+
 
 def get_all_vault_tags(vault_path: Path) -> Set[str]:
     """Scans the entire vault for existing tags in frontmatter."""
@@ -47,6 +62,7 @@ def get_all_vault_tags(vault_path: Path) -> Set[str]:
                 except Exception:
                     continue
     return all_tags
+
 
 def display_suggestions(report: VaultTagReport):
     """Rich display of tag suggestions."""
@@ -65,15 +81,22 @@ def display_suggestions(report: VaultTagReport):
             os.path.basename(s.file_path),
             ", ".join(s.existing_tags),
             ", ".join(s.suggested_tags),
-            s.reasoning
+            s.reasoning,
         )
     console.print(table)
 
+
 @app.command()
 def scan(
-    folder: Optional[Path] = typer.Option(None, "--folder", "-f", help="Specific folder to scan in vault."),
-    limit: int = typer.Option(10, "--limit", "-l", help="Limit number of files to process."),
-    provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get("MODEL_PROVIDER", "ollama"),
+    folder: Optional[Path] = typer.Option(
+        None, "--folder", "-f", help="Specific folder to scan in vault."
+    ),
+    limit: int = typer.Option(
+        10, "--limit", "-l", help="Limit number of files to process."
+    ),
+    provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get(
+        "MODEL_PROVIDER", "ollama"
+    ),
     model: Annotated[Optional[str], model_option()] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
@@ -86,12 +109,16 @@ def scan(
 
     vault_path_str = os.getenv("OBSIDIAN_VAULT_PATH")
     if not vault_path_str:
-        console.print("[red]Error: OBSIDIAN_VAULT_PATH environment variable not set.[/red]")
+        console.print(
+            "[red]Error: OBSIDIAN_VAULT_PATH environment variable not set.[/red]"
+        )
         raise typer.Exit(1)
-    
+
     vault_path = Path(vault_path_str)
-    scan_path = folder if folder and folder.is_absolute() else (vault_path / (folder or "."))
-    
+    scan_path = (
+        folder if folder and folder.is_absolute() else (vault_path / (folder or "."))
+    )
+
     if not scan_path.exists():
         console.print(f"[red]Error: Scan path {scan_path} does not exist.[/red]")
         raise typer.Exit(1)
@@ -124,21 +151,32 @@ def scan(
         try:
             post = frontmatter.load(f)
             meta = ContentMetadata.from_metadata(post.metadata)
-            notes_data.append({
-                "path": str(f.relative_to(vault_path)),
-                "content": post.content[:2000], # Truncate content for prompt efficiency
-                "tags": meta.tags,
-                "category": meta.category_name,
-            })
+            notes_data.append(
+                {
+                    "path": str(f.relative_to(vault_path)),
+                    "content": post.content[
+                        :2000
+                    ],  # Truncate content for prompt efficiency
+                    "tags": meta.tags,
+                    "category": meta.category_name,
+                }
+            )
         except Exception as e:
             if verbose:
                 console.print(f"[yellow]Skipping {f}: {e}[/yellow]")
 
     # 4. LLM processing
     try:
-        actual_provider = get_setting(TOOL_NAME, "provider", cli_val=provider, default="ollama")
+        actual_provider = get_setting(
+            TOOL_NAME, "provider", cli_val=provider, default="ollama"
+        )
         actual_model = get_setting(TOOL_NAME, "model", cli_val=model)
-        llm = resolve_provider(PROVIDERS, actual_provider, actual_model, debug=debug, no_llm=no_llm)
+        llm = resolve_provider(
+            PROVIDERS, actual_provider, actual_model, debug=debug, no_llm=no_llm
+        )
+    except VaultTaggerError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
@@ -147,10 +185,15 @@ def scan(
     user = build_user_prompt(notes_data)
 
     try:
-        with timed_run("obsidian-vault-auto-tagger", llm.model, source_location=str(scan_path)) as run:
+        with timed_run(
+            "obsidian-vault-auto-tagger", llm.model, source_location=str(scan_path)
+        ) as run:
             response = llm.complete(system, user, response_model=VaultTagReport)
             result = response
             run.item_count = len(notes_data)
+    except LLMRunError as e:
+        console.print(f"[red]Error during LLM processing: {e}[/red]")
+        raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]Error during LLM processing: {e}[/red]")
         raise typer.Exit(1)
@@ -158,10 +201,15 @@ def scan(
     display_suggestions(result)
 
     if dry_run:
-        console.print("\n[yellow][dry-run] Analysis complete. No tags applied.[/yellow]")
+        console.print(
+            "\n[yellow][dry-run] Analysis complete. No tags applied.[/yellow]"
+        )
     else:
         # Implement tag application logic if desired, or keep as suggestion-first
-        console.print("\n[bold]Note:[/bold] Tag application is manual or via a separate 'apply' command (not implemented in this prototype).")
+        console.print(
+            "\n[bold]Note:[/bold] Tag application is manual or via a separate 'apply' command (not implemented in this prototype)."
+        )
+
 
 if __name__ == "__main__":
     app()

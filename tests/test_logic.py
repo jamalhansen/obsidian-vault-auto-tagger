@@ -1,5 +1,21 @@
 """Tests for obsidian_vault_auto_tagger.logic utilities."""
-from obsidian_vault_auto_tagger.logic import get_all_vault_tags
+from obsidian_vault_auto_tagger.logic import get_all_vault_tags, VaultTaggerError, ProviderSetupError, LLMRunError
+
+
+class TestTypedErrors:
+    def test_vault_tagger_error_is_base(self):
+        assert issubclass(ProviderSetupError, VaultTaggerError)
+        assert issubclass(LLMRunError, VaultTaggerError)
+
+    def test_provider_setup_error_is_exception(self):
+        err = ProviderSetupError("bad provider")
+        assert isinstance(err, Exception)
+        assert "bad provider" in str(err)
+
+    def test_llm_run_error_is_exception(self):
+        err = LLMRunError("run failed")
+        assert isinstance(err, Exception)
+        assert "run failed" in str(err)
 
 
 class TestGetAllVaultTags:
