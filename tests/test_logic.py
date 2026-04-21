@@ -1,5 +1,11 @@
 """Tests for obsidian_vault_auto_tagger.logic utilities."""
-from obsidian_vault_auto_tagger.logic import get_all_vault_tags, VaultTaggerError, ProviderSetupError, LLMRunError
+
+from obsidian_vault_auto_tagger.logic import (
+    get_all_vault_tags,
+    VaultTaggerError,
+    ProviderSetupError,
+    LLMRunError,
+)
 
 
 class TestTypedErrors:
@@ -20,7 +26,9 @@ class TestTypedErrors:
 
 class TestGetAllVaultTags:
     def test_collects_list_tags(self, tmp_path):
-        (tmp_path / "note.md").write_text("---\ntags:\n  - ai\n  - python\n---\nContent")
+        (tmp_path / "note.md").write_text(
+            "---\ntags:\n  - ai\n  - python\n---\nContent"
+        )
         tags = get_all_vault_tags(tmp_path)
         assert "ai" in tags
         assert "python" in tags
