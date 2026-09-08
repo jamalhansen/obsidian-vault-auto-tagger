@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from obsidian_vault_auto_tagger.logic import app
+from obsidian_vault_auto_tagger.cli import app
 from obsidian_vault_auto_tagger.schema import TagSuggestion, VaultTagReport
 
 runner = CliRunner()
@@ -39,7 +39,7 @@ class TestScanCommand:
         report = VaultTagReport(suggestions=[_suggestion()])
 
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.logic.resolve_provider",
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
                    return_value=_mock_provider(report)):
             result = runner.invoke(app, ["--no-llm", "--dry-run"])
 
@@ -61,7 +61,7 @@ class TestScanCommand:
         vault = tmp_path / "vault"
         vault.mkdir()
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.logic.resolve_provider",
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
                    return_value=_mock_provider(VaultTagReport(suggestions=[]))):
             result = runner.invoke(app, ["--no-llm"])
         assert result.exit_code == 0
@@ -73,7 +73,7 @@ class TestScanCommand:
             (vault / f"note{i}.md").write_text(f"---\ntags:\n  - t{i}\n---\nContent {i}")
         report = VaultTagReport(suggestions=[])
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.logic.resolve_provider",
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
                    return_value=_mock_provider(report)):
             result = runner.invoke(app, ["--limit", "2", "--no-llm"])
         assert result.exit_code == 0
