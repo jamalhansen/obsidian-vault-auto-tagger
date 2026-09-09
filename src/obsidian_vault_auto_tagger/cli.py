@@ -29,7 +29,7 @@ from .core import VaultTaggerError, LLMRunError, get_all_vault_tags
 
 TOOL_NAME = "obsidian-vault-auto-tagger"
 
-DEFAULTS = {"provider": "ollama", "model": "llama3"}
+DEFAULTS = {"provider": "ollama", "model": "llama3.2:3b"}
 _TOOL = register_tool(TOOL_NAME)
 
 console = Console()
@@ -141,7 +141,9 @@ def scan(
         actual_provider = get_setting(
             TOOL_NAME, "provider", cli_val=provider, default="ollama"
         )
-        actual_model = get_setting(TOOL_NAME, "model", cli_val=model)
+        actual_model = get_setting(
+            TOOL_NAME, "model", cli_val=model, default=DEFAULTS["model"]
+        )
         llm = resolve_provider(
             PROVIDERS, actual_provider, actual_model, debug=debug, no_llm=no_llm
         )
