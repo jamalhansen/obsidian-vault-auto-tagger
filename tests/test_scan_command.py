@@ -34,7 +34,10 @@ def _suggestion(file_path="note.md"):
 
 
 class TestScanCommand:
-    def test_dry_run_prints_analysis(self, tmp_path, monkeypatch):
+    def test_suggestions_only_without_apply(self, tmp_path, monkeypatch):
+        """Without --apply, nothing is ever written regardless of --dry-run --
+        this is the "prototype" behavior scan() always had before --apply
+        existed (see core.apply_tag_suggestion's docstring)."""
         vault = _make_vault(tmp_path)
         report = VaultTagReport(suggestions=[_suggestion()])
 
@@ -44,7 +47,62 @@ class TestScanCommand:
             result = runner.invoke(app, ["--no-llm", "--dry-run"])
 
         assert result.exit_code == 0
-        assert "Analysis complete" in result.output
+        assert "Suggestions only" in result.output
+        assert (vault / "note.md").read_text() == "---\ntags:\n  - ai\n---\n# Test\nContent here."
+
+    def test_dry_run_with_apply_shows_what_would_change_without_writing(self, tmp_path, monkeypatch):
+        # Not --no-llm: that flag always implies dry-run (resolve_dry_run's
+        # own rule), which would make this test pass for the wrong reason.
+        # The provider is mocked below, so no real LLM call happens either way.
+        vault = _make_vault(tmp_path)
+        report = VaultTagReport(suggestions=[_suggestion()])
+        original = (vault / "note.md").read_text()
+
+        monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
+                   return_value=_mock_provider(report)):
+            result = runner.invoke(app, ["--dry-run", "--apply"])
+
+        assert result.exit_code == 0
+        assert "[dry-run] Would apply" in result.output
+        assert (vault / "note.md").read_text() == original
+
+    def test_apply_writes_suggested_tags_into_the_file(self, tmp_path, monkeypatch):
+        vault = _make_vault(tmp_path)
+        report = VaultTagReport(suggestions=[_suggestion()])
+
+        monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
+                   return_value=_mock_provider(report)):
+            result = runner.invoke(app, ["--apply"])
+
+        assert result.exit_code == 0
+        assert "Applied tags to 1/1 files" in result.output
+        import frontmatter as fm
+        post = fm.load(vault / "note.md")
+        assert post.metadata["tags"] == ["ai", "llm"]
+
+    def test_only_missing_tags_skips_files_that_already_have_tags(self, tmp_path, monkeypatch):
+        vault = _make_vault(tmp_path)  # note.md already has tags: [ai]
+        (vault / "untagged.md").write_text("---\ntitle: no tags yet\n---\nContent.")
+        report = VaultTagReport(suggestions=[])
+        monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
+
+        captured = {}
+
+        def fake_complete(system, user, response_model=None):
+            captured["user"] = user
+            return report
+
+        provider = MagicMock()
+        provider.model = "mock"
+        provider.complete = MagicMock(side_effect=fake_complete)
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider", return_value=provider):
+            result = runner.invoke(app, ["--no-llm", "--only-missing-tags"])
+
+        assert result.exit_code == 0
+        assert "untagged.md" in captured["user"]
+        assert "note.md" not in captured["user"]
 
     def test_missing_vault_path_exits(self, monkeypatch):
         monkeypatch.delenv("OBSIDIAN_VAULT_PATH", raising=False)

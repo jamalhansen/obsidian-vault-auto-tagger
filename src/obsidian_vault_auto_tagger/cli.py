@@ -22,7 +22,12 @@ from local_first_common.tracking import register_tool, timed_run
 from rich.console import Console
 from rich.table import Table
 
-from .core import LLMRunError, VaultTaggerError, get_all_vault_tags
+from .core import (
+    LLMRunError,
+    VaultTaggerError,
+    apply_tag_suggestion,
+    get_all_vault_tags,
+)
 from .prompts import build_system_prompt, build_user_prompt
 from .schema import VaultTagReport
 
@@ -65,6 +70,20 @@ def scan(
     limit: Annotated[
         int, typer.Option("--limit", "-l", help="Limit number of files to process.")
     ] = 10,
+    only_missing_tags: Annotated[
+        bool,
+        typer.Option(
+            "--only-missing-tags",
+            help="Skip files that already have a non-empty tags field -- for backfilling exactly the files that need one.",
+        ),
+    ] = False,
+    apply: Annotated[
+        bool,
+        typer.Option(
+            "--apply",
+            help="Write suggested_tags into each file's tags: field (merged with any existing tags), instead of only printing suggestions.",
+        ),
+    ] = False,
     provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get(
         "MODEL_PROVIDER", "ollama"
     ),
@@ -105,6 +124,13 @@ def scan(
         for file in files:
             if file.endswith(".md"):
                 file_path = Path(root) / file
+                if only_missing_tags:
+                    try:
+                        existing_tags = frontmatter.load(file_path).metadata.get("tags")
+                    except Exception:  # noqa: BLE001 - a malformed note doesn't get to block the missing-tags filter; treat as missing and let step 3's own read report the real problem
+                        existing_tags = None
+                    if existing_tags:
+                        continue
                 files_to_process.append(file_path)
                 if len(files_to_process) >= limit:
                     break
@@ -172,14 +198,25 @@ def scan(
 
     display_suggestions(result)
 
+    if not apply:
+        console.print(
+            "\n[bold]Note:[/bold] Suggestions only -- pass --apply to write them into each file's tags: field."
+        )
+        return
+
     if dry_run:
-        console.print(
-            "\n[yellow][dry-run] Analysis complete. No tags applied.[/yellow]"
-        )
-    else:
-        console.print(
-            "\n[bold]Note:[/bold] Tag application is manual or via a separate 'apply' command (not implemented in this prototype)."
-        )
+        console.print("\n[yellow]\\[dry-run] Would apply:[/yellow]")
+        for s in result.suggestions:
+            console.print(f"  {s.file_path}: +{s.suggested_tags}")
+        return
+
+    applied_count = 0
+    for s in result.suggestions:
+        if apply_tag_suggestion(vault_path, s.file_path, s.suggested_tags):
+            applied_count += 1
+        elif verbose:
+            console.print(f"[yellow]Could not apply tags to {s.file_path}[/yellow]")
+    console.print(f"\n[bold green]Applied tags to {applied_count}/{len(result.suggestions)} files.[/bold green]")
 
 
 if __name__ == "__main__":
