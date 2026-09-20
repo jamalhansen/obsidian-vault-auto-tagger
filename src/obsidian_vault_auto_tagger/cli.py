@@ -1,31 +1,30 @@
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
-import typer
 import frontmatter
+import typer
+from local_first_common.cli import (
+    debug_option,
+    dry_run_option,
+    init_config_option,
+    model_option,
+    no_llm_option,
+    provider_option,
+    resolve_dry_run,
+    resolve_provider,
+    verbose_option,
+)
+from local_first_common.config import get_setting
+from local_first_common.models import ContentMetadata
+from local_first_common.providers import PROVIDERS
+from local_first_common.tracking import register_tool, timed_run
 from rich.console import Console
 from rich.table import Table
 
-from local_first_common.providers import PROVIDERS
-from local_first_common.cli import (
-    init_config_option,
-    provider_option,
-    model_option,
-    dry_run_option,
-    no_llm_option,
-    verbose_option,
-    debug_option,
-    resolve_provider,
-    resolve_dry_run,
-)
-from local_first_common.config import get_setting
-from local_first_common.tracking import register_tool, timed_run
-from local_first_common.models import ContentMetadata
-
-from .schema import VaultTagReport
+from .core import LLMRunError, VaultTaggerError, get_all_vault_tags
 from .prompts import build_system_prompt, build_user_prompt
-from .core import VaultTaggerError, LLMRunError, get_all_vault_tags
+from .schema import VaultTagReport
 
 TOOL_NAME = "obsidian-vault-auto-tagger"
 
@@ -60,16 +59,16 @@ def display_suggestions(report: VaultTagReport):
 
 @app.command()
 def scan(
-    folder: Optional[Path] = typer.Option(
-        None, "--folder", "-f", help="Specific folder to scan in vault."
-    ),
-    limit: int = typer.Option(
-        10, "--limit", "-l", help="Limit number of files to process."
-    ),
+    folder: Annotated[
+        Path | None, typer.Option("--folder", "-f", help="Specific folder to scan in vault.")
+    ] = None,
+    limit: Annotated[
+        int, typer.Option("--limit", "-l", help="Limit number of files to process.")
+    ] = 10,
     provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get(
         "MODEL_PROVIDER", "ollama"
     ),
-    model: Annotated[Optional[str], model_option()] = None,
+    model: Annotated[str | None, model_option()] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
     verbose: Annotated[bool, verbose_option()] = False,
@@ -98,7 +97,7 @@ def scan(
     # 1. Gather all tags in vault for context
     if verbose:
         console.print("Scanning vault for existing tags...")
-    all_existing_tags = sorted(list(get_all_vault_tags(vault_path)))
+    all_existing_tags = sorted(get_all_vault_tags(vault_path))
 
     # 2. Collect files to process
     files_to_process = []
@@ -132,7 +131,7 @@ def scan(
                     "category": meta.category_name,
                 }
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - a malformed note should be skipped, not crash the scan
             if verbose:
                 console.print(f"[yellow]Skipping {f}: {e}[/yellow]")
 
@@ -150,7 +149,7 @@ def scan(
     except VaultTaggerError as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI boundary: report cleanly and exit
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
 
@@ -167,7 +166,7 @@ def scan(
     except LLMRunError as e:
         console.print(f"[red]Error during LLM processing: {e}[/red]")
         raise typer.Exit(1)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI boundary: report cleanly and exit
         console.print(f"[red]Error during LLM processing: {e}[/red]")
         raise typer.Exit(1)
 

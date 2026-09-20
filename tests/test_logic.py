@@ -1,10 +1,10 @@
 """Tests for obsidian_vault_auto_tagger.logic utilities."""
 
 from obsidian_vault_auto_tagger.logic import (
-    get_all_vault_tags,
-    VaultTaggerError,
-    ProviderSetupError,
     LLMRunError,
+    ProviderSetupError,
+    VaultTaggerError,
+    get_all_vault_tags,
 )
 
 

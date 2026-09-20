@@ -1,6 +1,6 @@
-from typing import List
 
-def build_system_prompt(existing_tags: List[str]) -> str:
+
+def build_system_prompt(existing_tags: list[str]) -> str:
     tags_list = ", ".join(existing_tags)
     return f"""You are an expert Obsidian vault librarian. Your goal is to suggest consistent, high-quality tags for a set of notes.
 
@@ -22,7 +22,7 @@ Return a JSON object with a list of suggestions. Each suggestion must include:
 - reasoning: Short explanation of why these tags were chosen.
 """
 
-def build_user_prompt(notes_data: List[dict]) -> str:
+def build_user_prompt(notes_data: list[dict]) -> str:
     prompt = "Please suggest tags for the following notes:\n\n"
     for note in notes_data:
         prompt += f"FILE: {note['path']}\n"
