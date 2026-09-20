@@ -16,7 +16,14 @@ uv sync
 ## Usage
 ```bash
 export OBSIDIAN_VAULT_PATH="/path/to/your/vault"
+
+# Preview suggestions only -- nothing is written without --apply
 uv run vault-auto-tagger scan -f "projects/ai" -l 20
+
+# Back-fill tags for files that don't have any yet, writing for real
+uv run vault-auto-tagger scan -f "projects/ai" --only-missing-tags --apply
 ```
 
-Standard flags supported: `--dry-run`, `--no-llm`, `--provider`, `--model`.
+- `--apply` writes suggested tags into each file's `tags:` field, merged with any existing tags -- without it, suggestions are only printed.
+- `--only-missing-tags` skips files that already have a non-empty tags field.
+- Standard flags supported: `--dry-run`, `--no-llm`, `--provider`, `--model`.
