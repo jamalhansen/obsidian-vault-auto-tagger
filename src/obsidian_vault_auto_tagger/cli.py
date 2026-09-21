@@ -18,7 +18,7 @@ from local_first_common.cli import (
 from local_first_common.config import get_setting
 from local_first_common.models import ContentMetadata
 from local_first_common.providers import PROVIDERS
-from local_first_common.tracking import register_tool, timed_run
+from local_first_common.tracking import register_tool
 from rich.console import Console
 from rich.table import Table
 
@@ -182,13 +182,10 @@ def scan(
     system = build_system_prompt(all_existing_tags)
     user = build_user_prompt(notes_data)
 
+    llm.source_location = str(scan_path)
+    llm.item_count = len(notes_data)
     try:
-        with timed_run(
-            "obsidian-vault-auto-tagger", llm.model, source_location=str(scan_path)
-        ) as run:
-            response = llm.complete(system, user, response_model=VaultTagReport)
-            result = response
-            run.item_count = len(notes_data)
+        result = llm.complete(system, user, response_model=VaultTagReport)
     except LLMRunError as e:
         console.print(f"[red]Error during LLM processing: {e}[/red]")
         raise typer.Exit(1)
