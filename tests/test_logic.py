@@ -1,6 +1,6 @@
 """Tests for obsidian_vault_auto_tagger.logic utilities."""
 
-from obsidian_vault_auto_tagger.logic import (
+from obsidian_vault_auto_tagger.core import (
     LLMRunError,
     ProviderSetupError,
     VaultTaggerError,
