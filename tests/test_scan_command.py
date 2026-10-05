@@ -1,4 +1,5 @@
 """Tests for the scan command in obsidian_vault_auto_tagger.logic."""
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -42,8 +43,7 @@ class TestScanCommand:
         report = VaultTagReport(suggestions=[_suggestion()])
 
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
-                   return_value=_mock_provider(report)):
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider", return_value=_mock_provider(report)):
             result = runner.invoke(app, ["--no-llm", "--dry-run"])
 
         assert result.exit_code == 0
@@ -59,8 +59,7 @@ class TestScanCommand:
         original = (vault / "note.md").read_text()
 
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
-                   return_value=_mock_provider(report)):
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider", return_value=_mock_provider(report)):
             result = runner.invoke(app, ["--dry-run", "--apply"])
 
         assert result.exit_code == 0
@@ -72,13 +71,13 @@ class TestScanCommand:
         report = VaultTagReport(suggestions=[_suggestion()])
 
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
-                   return_value=_mock_provider(report)):
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider", return_value=_mock_provider(report)):
             result = runner.invoke(app, ["--apply"])
 
         assert result.exit_code == 0
         assert "Applied tags to 1/1 files" in result.output
         import frontmatter as fm
+
         post = fm.load(vault / "note.md")
         assert post.metadata["tags"] == ["ai", "llm"]
 
@@ -119,8 +118,10 @@ class TestScanCommand:
         vault = tmp_path / "vault"
         vault.mkdir()
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
-                   return_value=_mock_provider(VaultTagReport(suggestions=[]))):
+        with patch(
+            "obsidian_vault_auto_tagger.cli.resolve_provider",
+            return_value=_mock_provider(VaultTagReport(suggestions=[])),
+        ):
             result = runner.invoke(app, ["--no-llm"])
         assert result.exit_code == 0
         assert "No markdown files" in result.output
@@ -131,7 +132,6 @@ class TestScanCommand:
             (vault / f"note{i}.md").write_text(f"---\ntags:\n  - t{i}\n---\nContent {i}")
         report = VaultTagReport(suggestions=[])
         monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-        with patch("obsidian_vault_auto_tagger.cli.resolve_provider",
-                   return_value=_mock_provider(report)):
+        with patch("obsidian_vault_auto_tagger.cli.resolve_provider", return_value=_mock_provider(report)):
             result = runner.invoke(app, ["--limit", "2", "--no-llm"])
         assert result.exit_code == 0

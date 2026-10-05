@@ -1,6 +1,7 @@
 """Tests for core.apply_tag_suggestion -- the write-back step scan()'s own
 docstring used to call "not implemented in this prototype" until now.
 """
+
 import frontmatter
 
 from obsidian_vault_auto_tagger.core import apply_tag_suggestion

@@ -26,9 +26,7 @@ class TestTypedErrors:
 
 class TestGetAllVaultTags:
     def test_collects_list_tags(self, tmp_path):
-        (tmp_path / "note.md").write_text(
-            "---\ntags:\n  - ai\n  - python\n---\nContent"
-        )
+        (tmp_path / "note.md").write_text("---\ntags:\n  - ai\n  - python\n---\nContent")
         tags = get_all_vault_tags(tmp_path)
         assert "ai" in tags
         assert "python" in tags

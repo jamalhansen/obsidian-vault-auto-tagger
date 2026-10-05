@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel
 
 
@@ -7,6 +6,7 @@ class TagSuggestion(BaseModel):
     existing_tags: list[str]
     suggested_tags: list[str]
     reasoning: str
+
 
 class VaultTagReport(BaseModel):
     suggestions: list[TagSuggestion]

@@ -64,12 +64,8 @@ def display_suggestions(report: VaultTagReport):
 
 @app.command()
 def scan(
-    folder: Annotated[
-        Path | None, typer.Option("--folder", "-f", help="Specific folder to scan in vault.")
-    ] = None,
-    limit: Annotated[
-        int, typer.Option("--limit", "-l", help="Limit number of files to process.")
-    ] = 10,
+    folder: Annotated[Path | None, typer.Option("--folder", "-f", help="Specific folder to scan in vault.")] = None,
+    limit: Annotated[int, typer.Option("--limit", "-l", help="Limit number of files to process.")] = 10,
     only_missing_tags: Annotated[
         bool,
         typer.Option(
@@ -84,9 +80,7 @@ def scan(
             help="Write suggested_tags into each file's tags: field (merged with any existing tags), instead of only printing suggestions.",
         ),
     ] = False,
-    provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get(
-        "MODEL_PROVIDER", "ollama"
-    ),
+    provider: Annotated[str, provider_option(PROVIDERS)] = os.environ.get("MODEL_PROVIDER", "ollama"),
     model: Annotated[str | None, model_option()] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
@@ -99,15 +93,11 @@ def scan(
 
     vault_path_str = os.getenv("OBSIDIAN_VAULT_PATH")
     if not vault_path_str:
-        console.print(
-            "[red]Error: OBSIDIAN_VAULT_PATH environment variable not set.[/red]"
-        )
+        console.print("[red]Error: OBSIDIAN_VAULT_PATH environment variable not set.[/red]")
         raise typer.Exit(1)
 
     vault_path = Path(vault_path_str)
-    scan_path = (
-        folder if folder and folder.is_absolute() else (vault_path / (folder or "."))
-    )
+    scan_path = folder if folder and folder.is_absolute() else (vault_path / (folder or "."))
 
     if not scan_path.exists():
         console.print(f"[red]Error: Scan path {scan_path} does not exist.[/red]")
@@ -150,9 +140,7 @@ def scan(
             notes_data.append(
                 {
                     "path": str(f.relative_to(vault_path)),
-                    "content": post.content[
-                        :2000
-                    ],  # Truncate content for prompt efficiency
+                    "content": post.content[:2000],  # Truncate content for prompt efficiency
                     "tags": meta.tags,
                     "category": meta.category_name,
                 }
@@ -163,12 +151,8 @@ def scan(
 
     # 4. LLM processing
     try:
-        actual_provider = get_setting(
-            TOOL_NAME, "provider", cli_val=provider, default="ollama"
-        )
-        actual_model = get_setting(
-            TOOL_NAME, "model", cli_val=model, default=DEFAULTS["model"]
-        )
+        actual_provider = get_setting(TOOL_NAME, "provider", cli_val=provider, default="ollama")
+        actual_model = get_setting(TOOL_NAME, "model", cli_val=model, default=DEFAULTS["model"])
         llm = resolve_provider(
             PROVIDERS, actual_provider, actual_model, debug=debug, no_llm=no_llm, tool_name=TOOL_NAME
         )
