@@ -53,6 +53,8 @@ def apply_tag_suggestion(vault_path: Path, file_path: str, suggested_tags: list[
     existing = post.metadata.get("tags") or []
     if isinstance(existing, str):
         existing = [t.strip() for t in existing.split(",") if t.strip()]
+    elif not isinstance(existing, list):
+        existing = [str(existing)]  # a lone YAML scalar, e.g. `tags: 2026`
 
     merged = list(dict.fromkeys([*existing, *suggested_tags]))  # union, order-preserving, de-duplicated
     post.metadata["tags"] = merged
